@@ -6,6 +6,8 @@ import { setConversationMessages } from '~services/chat-history'
 import { ChatMessageModel } from '~types'
 import { uuid } from '~utils'
 import { BotId } from '../bots'
+import md5 from 'md5'
+import { get as gGet, set as gSet } from '../state/global'
 
 export function useChat(botId: BotId, page = 'singleton') {
   const chatAtom = useMemo(() => chatFamily({ botId, page }), [botId, page])
@@ -35,28 +37,45 @@ export function useChat(botId: BotId, page = 'singleton') {
         draft.generatingMessageId = botMessageId
         draft.abortController = abortController
       })
+      const socket = gGet('socket')
+      const uid = md5(input)
       await chatState.bot.sendMessage({
         prompt: input,
         signal: abortController.signal,
         onEvent(event) {
           if (event.type === 'UPDATE_ANSWER') {
-            updateMessage(botMessageId, (message) => {
-              message.text = event.data.text
-            })
+            // updateMessage(botMessageId, (message) => {
+            //   message.text = event.data.text
+            // })
+            socket.send(JSON.stringify({
+              type: 'UPDATE_ANSWER',
+              uid,
+              content: event.data.text
+            }))
           } else if (event.type === 'ERROR') {
             console.error('sendMessage error', event.error.code, event.error)
-            updateMessage(botMessageId, (message) => {
-              message.error = event.error
-            })
-            setChatState((draft) => {
-              draft.abortController = undefined
-              draft.generatingMessageId = ''
-            })
+            // updateMessage(botMessageId, (message) => {
+            //   message.error = event.error
+            // })
+            // setChatState((draft) => {
+            //   draft.abortController = undefined
+            //   draft.generatingMessageId = ''
+            // })
+            socket.send(JSON.stringify({
+              type: 'ERROR',
+              uid,
+              content: ''
+            }))
           } else if (event.type === 'DONE') {
-            setChatState((draft) => {
-              draft.abortController = undefined
-              draft.generatingMessageId = ''
-            })
+            socket.send(JSON.stringify({
+              type: 'DONE',
+              uid,
+              content: ''
+            }))
+            // setChatState((draft) => {
+            //   draft.abortController = undefined
+            //   draft.generatingMessageId = ''
+            // })
           }
         },
       })

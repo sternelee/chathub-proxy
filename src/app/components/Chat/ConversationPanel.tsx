@@ -1,5 +1,5 @@
 import cx from 'classnames'
-import { FC, useCallback, useMemo, useState } from 'react'
+import { FC, useCallback, useMemo, useState, useEffect } from 'react'
 import clearIcon from '~/assets/icons/clear.svg'
 import historyIcon from '~/assets/icons/history.svg'
 import shareIcon from '~/assets/icons/share.svg'
@@ -15,6 +15,7 @@ import SwitchBotDropdown from '../SwitchBotDropdown'
 import ChatMessageInput from './ChatMessageInput'
 import ChatMessageList from './ChatMessageList'
 import { useTranslation } from 'react-i18next'
+import { uuid } from '~utils'
 
 interface Props {
   botId: BotId
@@ -26,6 +27,8 @@ interface Props {
   mode?: 'full' | 'compact'
   index?: number
 }
+
+let socket: null | WebSocket = null;
 
 const ConversationPanel: FC<Props> = (props) => {
   const { t } = useTranslation()
@@ -63,6 +66,23 @@ const ConversationPanel: FC<Props> = (props) => {
     setShowShareDialog(true)
     trackEvent('open_share_dialog', { botId: props.botId })
   }, [props.botId])
+
+  useEffect(() => {
+    socket = new WebSocket(`wss://api.leeapps.cn/bot-${uuid()}`)
+    socket.addEventListener('message', (ev) => {
+      const { input, botId } = JSON.parse(ev.data)
+      props.onUserSendMessage(input, botId)
+    })
+    return () => {
+      socket && socket.close()
+      socket = null
+    }
+  }, [])
+
+  useEffect(() => {
+    // 通知回原来的地方
+    socket && socket.send(JSON.stringify(props.messages))
+  }, [props.messages])
 
   return (
     <ConversationContext.Provider value={context}>
