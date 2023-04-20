@@ -16,6 +16,7 @@ import ChatMessageInput from './ChatMessageInput'
 import ChatMessageList from './ChatMessageList'
 import { useTranslation } from 'react-i18next'
 import { uuid } from '~utils'
+import { get as gGet, set as gSet } from '../../state/global'
 
 interface Props {
   botId: BotId
@@ -68,7 +69,9 @@ const ConversationPanel: FC<Props> = (props) => {
   }, [props.botId])
 
   useEffect(() => {
-    socket = new WebSocket(`wss://api.leeapps.cn/bot-${uuid()}`)
+    const uid = uuid()
+    socket = new WebSocket(`wss://api.leeapps.cn/bot-${uid}`)
+    gSet('socket', socket)
     socket.addEventListener('message', (ev) => {
       const { input, botId } = JSON.parse(ev.data)
       props.onUserSendMessage(input, botId)
@@ -81,7 +84,8 @@ const ConversationPanel: FC<Props> = (props) => {
 
   useEffect(() => {
     // 通知回原来的地方
-    socket && socket.send(JSON.stringify(props.messages))
+    console.log('内容:', props.messages)
+    // socket && socket.send(JSON.stringify(props.messages))
   }, [props.messages])
 
   return (
